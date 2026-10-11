@@ -295,7 +295,7 @@ node logintest.mjs --captcha AB3D --watch 60  # 追加会话寿命观测（最�
 | `duelist` / `duedetail` / `todaylist` / 状态流水 | ✔ 成功 |
 | `cancel` | ✔ 成功（订单转 `duestatu:4 / dueendstatu:1`） |
 | `smartPlan` / `smartDue` | ✔ 20:00 后跑通，`maxDate` 自动变次日 |
-| `checkin` | ✗ 服务端按**设备授权**放行：换 SSID/AP、走手机热点拿到**同一个源 IP `172.20.188.19`**、换 UA/Referer、报文加字段 —— 一律 `本机未授权，请到馆内签到机操作`。H5 前端本身就把签到按钮锁在 `clientIp.isCheckinMachine===true` 之后，说明**这套网页端不给学生自助签到**；手机那次成功多半来自微信小程序 |
+| `checkin` | ✗ `checkin/sign` 被设备授权锁死（`本机未授权，请到馆内签到机操作`），换 SSID/AP、换源 IP、换 UA/Referer 都无效。抓包+订单流水坐实：**手机签到走的是另一条接口 `/api/web/user/in`**（不在前端 bundle 里，移动端客户端用的），本条记录结论、不封装成远程签到 |
 | `signout` / `tempout` / `continueOrder` | 需要已签到且到开始时间，当前账号拿不到；已确认 `continuetime` 是**整数分钟** |
 | 组队 / 成员 / 违约 / 资产 / 公告 / FAQ | ✔ 读接口全通；成员搜索按**学号**匹配（姓名搜不到） |
 
