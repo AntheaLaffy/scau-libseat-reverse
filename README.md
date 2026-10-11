@@ -11,13 +11,31 @@
 - 验证码样本与 manifest（`jsessionid` 已剔除），可用来训练 / 回归自己的求解器：
   [`captcha-samples/`](captcha-samples/)
 
-## 这份代码同时还活在两个地方
+## 两个副本：仓库 + 番茄todo 实际加载的那份
 
-- **这里**（`~/code/scau-libseat-reverse`）是**正式仓库**：源码、逆向记录、样本都在这里，
-  Codex 的 MCP 注册也指着这里的 `server.mjs`。
-- `~/code/todo/mcp/libseat/` 是**最初的运行副本**（那个仓库的 `/mcp/` 被 gitignore，
-  所以它不入库，只在本机当草稿用）。内容与这里同源，改动请以本仓库为准——
-  两边不会自动同步，不要在那儿继续开发。
+- **这里**是正式仓库：源码、逆向记录、样本、GitHub 历史都在这里。
+- `~/code/todo/mcp/libseat/` 是**番茄todo 实际加载的副本**（那个仓库的 `/mcp/` 被 gitignore，
+  所以它不入库）。app 的 `mcp.json`（`~/.local/share/studio.tomato.todo/agent/mcp.json`）里
+  `seat` 指向副本的 `server.mjs`：
+
+  ```json
+  {
+    "mcpServers": {
+      "seat": {
+        "command": "/home/fuurin/.local/lib/tomato-todo/agent/bin/node",
+        "args": ["/home/fuurin/code/todo/mcp/libseat/server.mjs"],
+        "env": { "LIBSEAT_ENV_FILE": "/home/fuurin/code/todo/mcp/libseat/.env" },
+        "exposure": "codemode",
+        "description": "华南农业大学图书馆座位：查空座、看预约、下单/签到/签退/取消"
+      }
+    }
+  }
+  ```
+
+  路径按自己机器改。`exposure: codemode` 表示助手在代码里调用这些工具（工具名形如
+  `mcp__seat__libseat_*`），不会撑大工具声明；助手只在用户主动发起的对话里连接 MCP，
+  自动唤醒轮次不加载。
+- 在**这边**改完代码，跑 `./sync-to-copy.sh` 同步到副本（`.env`、样本、`node_modules` 不同步）。
 
 ## 免责
 
