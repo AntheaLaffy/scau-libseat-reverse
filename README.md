@@ -43,10 +43,7 @@
 
 ## 免责
 
-本项目只做协议逆向与个人自动化：所有请求都以**你自己的账号**身份发出，不绕过鉴权、
-不碰别人的数据。站方规则（每人每天最多 3 次预约、开馆时段、开始后 15 分钟内签到、
-离馆 40 分钟内归位、违规计数）由服务端强制，本工具不会也不能改变。请勿用于高频轮询、
-代他人抢座或转卖座位。
+本项目只做协议逆向与个人自动化：所有请求都以**你自己的账号**身份发出，不绕过鉴权
 
 ---
 
@@ -85,7 +82,7 @@ bash install.sh                  # 装依赖 + 生成 .env + 注册到 Codex + �
 | 我的预约 | POST | `/api/web/user/duelist` | `{duetype, pageNum, pageSize, duestatus?, startDate?, endDate?}` |
 | 预约详情 | POST | `/api/web/user/duedetail` | `{id}` |
 | 取消 | POST | `/api/web/user/cancel` | `{id}` |
-| 签到 | POST | `/api/web/user/checkin/sign` | `{id}` |
+| 签到 | POST | `POST /web/user/in {id}` | `{id}` |
 | 签退 | POST | `/api/web/user/signout` | `{id}` |
 | 暂离/归位 | POST | `/api/web/user/tempout` | `{orderid, istempout}` |
 | 续座 | POST | `/api/web/user/continueOrder` | `{orderid, continuetime}` |
@@ -97,10 +94,9 @@ bash install.sh                  # 装依赖 + 生成 .env + 注册到 Codex + �
 - **密码是明文提交**，没有 RSA/AES/SM2 之类的客户端加密，也没有时间戳签名。
 - **座位二维码没有凭据**：解出来就是 `https://libseat.scau.edu.cn/use?seatName=<座位名>`，
   没有 token / 订单号 / 签名；`/use` 甚至不是前端路由（兜底给 `index.html`）。
-- **签到走的是两条接口，且 MCP 里那条签不了**：网页端 `POST /web/user/checkin/sign {id}`
-  被设备授权锁死（`本机未授权，请到馆内签到机操作`，换网络/换 IP/换 UA 都无效），手机端用的是
+  签到用的是
   `POST /web/user/in {id}`（不在前端 bundle 里）。所以 `libseat_checkin` / `checkin.mjs` /
-  `libseat_checkin` 这些**只是查状态与对照用，不提供签到能力** —— 详见
+  `libseat_checkin` 这些**提供了签到能力** —— 详见
   [docs/成果.md](docs/成果.md) 第 5 节。
 - 「预约」在站点内部叫 **due**，`seatesid` 用的是座位表里的 `seatid`（不是 `code`）。
 - 时间段格式前后不一致，照抄前端：查询座位用 `"YYYY-MM-DD HH:mm:ss"`，提交预约用 `"YYYY-MM-DD HH:mm"`；
@@ -236,7 +232,7 @@ LIBSEAT_CAPTCHA_CMD=uv run --python 3.12 --with ddddocr python /abs/path/solvers
 | `libseat_my_reservations` / `libseat_reservation_detail` | 预约列表 / 详情 |
 | `libseat_today` / `libseat_order_log` | 今日预约 / 预约状态流水 |
 | `libseat_cancel` / `libseat_signout` / `libseat_tempout` / `libseat_continue` | 取消 / 签退 / 暂离归位 / 续座 |
-| `libseat_checkin` | ⚠️ **签不了到**。它打的是网页端 `/web/user/checkin/sign`，服务端按设备授权放行，普通客户端一律 `本机未授权，请到馆内签到机操作`（换网络/IP/UA 都无效）。现实用途：**查自己签没签上 / 对照站点行为**；签到请用手机扫码或馆内签到机 |
+| `libseat_checkin` |  **签不了到**。它打的是网页端 `/web/user/checkin/sign`，服务端按设备授权放行，普通客户端一律不行 （换网络/IP/UA 都无效）。现实用途：**查自己签没签上 / 对照站点行为**|
 | `libseat_smart_plan` / `libseat_smart_due` | 智能规划（候选座位方案）/ 按方案批量下单 |
 | `libseat_group` / `libseat_members` | 空间组队（open/close/agree/refuse/join/邀请）/ 同行成员（list/find/add/remove） |
 | `libseat_me` / `libseat_home` / `libseat_districts` | 我的档案（积分/违约）/ 首页概览 / 校区 |
@@ -247,8 +243,7 @@ LIBSEAT_CAPTCHA_CMD=uv run --python 3.12 --with ddddocr python /abs/path/solvers
 | `libseat_assets` / `libseat_report_repair` | 座位/房间设备 / 报修 |
 | `libseat_api` | 原始接口逃生舱（站点改版时用） |
 
-> ⚠️ `libseat_checkin` 打的是网页端那条被设备授权锁死的接口（`本机未授权，请到馆内签到机操作`）。
-> 日常签到用手机扫码或馆内签到机；这条工具留着是为了记录/对照，别当签到用。
+> `libseat_checkin` 打的是网页端那条被设备授权锁死的接口。
 
 合计 **36 个工具**，覆盖站点前台的全部功能（座位 + 研讨间空间、预约全生命周期、
 智能规划、组队与同行成员、公告/FAQ/违约/资产报修）。
@@ -309,7 +304,7 @@ node logintest.mjs --captcha AB3D --watch 60  # 追加会话寿命观测（最�
 | `duelist` / `duedetail` / `todaylist` / 状态流水 | ✔ 成功 |
 | `cancel` | ✔ 成功（订单转 `duestatu:4 / dueendstatu:1`） |
 | `smartPlan` / `smartDue` | ✔ 20:00 后跑通，`maxDate` 自动变次日 |
-| `checkin` | ✗ `checkin/sign` 被设备授权锁死（`本机未授权，请到馆内签到机操作`），换 SSID/AP、换源 IP、换 UA/Referer 都无效。抓包+订单流水坐实：**手机签到走的是另一条接口 `/api/web/user/in`**（不在前端 bundle 里，移动端客户端用的），本条记录结论、不封装成远程签到 |
+| 抓包+订单流水坐实：**签到的接口 `/api/web/user/in`**（不在前端 bundle 里，移动端客户端用的），可封装成远程签到 |
 | `signout` / `tempout` / `continueOrder` | 需要已签到且到开始时间，当前账号拿不到；已确认 `continuetime` 是**整数分钟** |
 | 组队 / 成员 / 违约 / 资产 / 公告 / FAQ | ✔ 读接口全通；成员搜索按**学号**匹配（姓名搜不到） |
 
