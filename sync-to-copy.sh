@@ -8,7 +8,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="${LIBSEAT_COPY:-$HOME/code/todo/mcp/libseat}"
 rsync -a --delete \
-  --exclude node_modules --exclude .env \
+  --exclude .git --exclude node_modules --exclude .env \
   --exclude captcha-samples --exclude '*-session.json' --exclude '*-pending.json' \
   --exclude sync-to-copy.sh \
   "$HERE"/ "$DEST"/
