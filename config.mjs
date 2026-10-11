@@ -52,6 +52,9 @@ export const config = {
   probeUser: str('LIBSEAT_PROBE_USER'),
   probePass: str('LIBSEAT_PROBE_PASS'),
 
+  // 校区 id（/web/area/district 强制要 id；留空时自动用当前账号的 district_id）
+  districtId: str('LIBSEAT_DISTRICT_ID'),
+
   timeoutMs: num('LIBSEAT_HTTP_TIMEOUT_MS', 20000),
 };
 

@@ -8,7 +8,7 @@
 
 - 完整逆向记录（接口表、验证码规则与实测数据、CAS 三步协议、读图命中率、踩过的坑）：
   [docs/逆向记录.md](docs/逆向记录.md)
-- 验证码样本与 manifest（`jsessionid` 已剔除），可用来训练 / 回归自己的求解器：
+- 验证码样本与 manifest（会话值只留 `jsessionid_sha256` 指纹，不落原文），可用来训练 / 回归自己的求解器：
   [`captcha-samples/`](captcha-samples/)
 
 ## 两个副本：仓库 + 番茄todo 实际加载的那份
@@ -157,7 +157,7 @@ curl -sS          -X POST ... --data '{...,"captcha":"FYRV"}'   # 不带 cookie 
 
 ```
 captcha-samples/<时间戳>-<sha256前8位>.jpg
-captcha-samples/manifest.jsonl      {"ts","file","sha256","bytes","jsessionid","kind",...}
+captcha-samples/manifest.jsonl      {"ts","file","sha256","bytes","jsessionid_sha256","kind",...}
 ```
 
 三条入口：
@@ -222,8 +222,38 @@ LIBSEAT_CAPTCHA_CMD=uv run --python 3.12 --with ddddocr python /abs/path/solvers
 | `libseat_seats` | 某房间某时段座位占用（需登录） |
 | `libseat_reserve` | 提交预约（可给 seatId 或 seatName） |
 | `libseat_my_reservations` / `libseat_reservation_detail` | 预约列表 / 详情 |
-| `libseat_cancel` / `libseat_checkin` / `libseat_signout` / `libseat_tempout` | 取消 / 签到 / 签退 / 暂离归位 |
+| `libseat_today` / `libseat_order_log` | 今日预约 / 预约状态流水 |
+| `libseat_cancel` / `libseat_checkin` / `libseat_signout` / `libseat_tempout` / `libseat_continue` | 取消 / 签到 / 签退 / 暂离归位 / 续座 |
+| `libseat_smart_plan` / `libseat_smart_due` | 智能规划（候选座位方案）/ 按方案批量下单 |
+| `libseat_group` / `libseat_members` | 空间组队（open/close/agree/refuse/join/邀请）/ 同行成员（list/find/add/remove） |
+| `libseat_me` / `libseat_home` / `libseat_districts` | 我的档案（积分/违约）/ 首页概览 / 校区 |
+| `libseat_room_detail` / `libseat_room_map` | 房间详情（规则+可预约日期+座位表）/ 房间平面图 |
+| `libseat_availability` | 全馆实时空位（公开接口，免登录） |
+| `libseat_announcements` / `libseat_faq` / `libseat_holidays` | 公告 / 常见问题 / 假期闭馆 |
+| `libseat_violations` / `libseat_violations_read` | 违约记录 / 标记提醒已读 |
+| `libseat_assets` / `libseat_report_repair` | 座位/房间设备 / 报修 |
 | `libseat_api` | 原始接口逃生舱（站点改版时用） |
+
+合计 **36 个工具**，覆盖站点前台的全部功能（座位 + 研讨间空间、预约全生命周期、
+智能规划、组队与同行成员、公告/FAQ/违约/资产报修）。
+
+## 命令行：一串脚本，一个功能一个
+
+不想走 MCP 的话，`cli.mjs` + `scripts/` 把每个功能做成了可以直接跑的脚本
+（`scripts/<功能>.mjs` 就是转发到 `cli.mjs` 的同名子命令，实现只有一份：
+`cli.mjs` → `seatops.mjs` → `api.mjs`）。
+
+```bash
+node cli.mjs                                  # 列出全部子命令
+node scripts/rooms.mjs --query 一楼
+node scripts/availability.mjs                 # 现在哪儿有空位（免登录）
+node scripts/reserve.mjs --room 一楼思政 --first-free --date 2026-10-12 --start 09:00 --hours 3 --dry-run
+node scripts/mine.mjs --size 5
+node scripts/checkin.mjs --id <ORDER_ID>
+node scripts/run-all.mjs                      # 只读功能全跑一遍，逐条对账
+```
+
+完整清单见 [`scripts/README.md`](scripts/README.md)。
 
 ## CLI 自检
 
@@ -255,9 +285,19 @@ node logintest.mjs --captcha AB3D --watch 60  # 追加会话寿命观测（最�
 - MCP 协议层：`node smoke.mjs` 完成 initialize / tools/list（16 个工具）/ tools/call（真实取到房间列表）；
 - 进程存活：常开管道下 server 持续在线、管道关闭（EOF）才退出。
 
-未验证（需要你的账号或求解器才能真正跑成功分支）：`due` 提交、`duelist`/`duedetail`、
-`cancel`/`checkin`/`signout`/`tempout` 的成功返回。字段与路径来自前端 bundle，
-若站点改版，用 `libseat_api` 逃生舱对一下即可。
+第二轮（2026-10-11 晚，真账号实测）已把这些跑到确定结论：
+
+| 分支 | 结论 |
+| --- | --- |
+| `due` 提交 | ✔ 成功（19:32 下 20:00 档，返回完整 `order` + `rule`）；过去时间被拒；次日档要等当天 **20:00 放号** |
+| `duelist` / `duedetail` / `todaylist` / 状态流水 | ✔ 成功 |
+| `cancel` | ✔ 成功（订单转 `duestatu:4 / dueendstatu:1`） |
+| `smartPlan` / `smartDue` | ✔ 20:00 后跑通，`maxDate` 自动变次日 |
+| `checkin` | ✗ **服务端要求馆内签到机**：`本机未授权，请到馆内签到机操作`（`kioskCheckIn` 也是「非检索机环境」） |
+| `signout` / `tempout` / `continueOrder` | 需要已签到且到开始时间，当前账号拿不到；已确认 `continuetime` 是**整数分钟** |
+| 组队 / 成员 / 违约 / 资产 / 公告 / FAQ | ✔ 读接口全通；成员搜索按**学号**匹配（姓名搜不到） |
+
+字段与路径来自前端 bundle，若站点改版，用 `libseat_api` 逃生舱对一下即可。
 
 > 沙箱提示：Codex 的受限执行环境里，嵌套子进程的管道会丢数据（`smoke.mjs` 会拿不到任何回复）。
 > 在普通终端里跑 `node smoke.mjs` 是正常的；这不是 server 的问题。

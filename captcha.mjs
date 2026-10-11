@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { config } from './config.mjs';
+import { ROOT, config } from './config.mjs';
 import { cookieJarSnapshot, request } from './http.mjs';
 
 export class CaptchaUnavailable extends Error {
@@ -44,13 +44,18 @@ export function storeCaptchaSample(sample, extra = {}) {
   writeFileSync(file, sample.buffer);
   const record = {
     ts: sample.ts,
-    file,
+    file: path.relative(ROOT, file),
     sha256: sample.sha256,
     bytes: sample.bytes,
     contentType: sample.contentType,
-    jsessionid: sample.jsessionid,
+    // 只落 JSESSIONID 的指纹，不落原文：同一会话的多次尝试照样能归组，
+    // 但样本目录是要进仓库的，别把会话值带出去。
+    jsessionid_sha256: sample.jsessionid ? crypto.createHash('sha256').update(sample.jsessionid).digest('hex').slice(0, 16) : null,
     ...extra,
   };
+  // 样本目录进仓库，账号也不落：所有样本本来就只出自一个账号，留着没用。
+  delete record.user;
+  delete record.userName;
   appendFileSync(path.join(config.captchaDir, 'manifest.jsonl'), `${JSON.stringify(record)}\n`);
   return { file, record };
 }
