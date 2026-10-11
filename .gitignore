@@ -3,3 +3,4 @@ node_modules/
 *-session.json
 *-pending.json
 *.log
+rust/target/

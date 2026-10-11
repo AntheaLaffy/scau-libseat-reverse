@@ -1,0 +1,238 @@
+import { ScrollView } from "std-widgets.slint";
+
+component ActionButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    in property <bool> primary: false;
+    callback clicked();
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: !root.enabled ? #d8e0da : root.primary ? #17694e : #cad9cf;
+    background: !root.enabled ? #f2f4f2 : root.primary ? #1b8a65 : area.has-hover ? #eaf4ed : #ffffff;
+    Text {
+        text: root.text; color: !root.enabled ? #98a59c : root.primary ? #ffffff : #205c47;
+        font-size: 13px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center;
+    }
+    area := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+
+component Field inherits Rectangle {
+    in-out property <string> value;
+    in property <string> placeholder;
+    callback edited(string);
+    background: #ffffff; border-color: #cbd9cf; border-width: 1px; border-radius: 4px;
+    Text { x: 10px; text: root.placeholder; visible: root.value == ""; color: #97a69b; font-size: 13px; vertical-alignment: center; }
+    TextInput {
+        x: 10px; y: 4px; width: parent.width - 20px; height: parent.height - 8px;
+        text <=> root.value; color: #243b34; font-size: 13px;
+        selection-background-color: #97d9b9;
+        edited => { root.edited(self.text); }
+    }
+}
+
+component ConfirmCheck inherits Rectangle {
+    in-out property <bool> checked;
+    in property <string> text;
+    background: transparent;
+    Rectangle {
+        x: 0px; y: (parent.height - 17px) / 2; width: 17px; height: 17px;
+        border-radius: 3px; border-color: root.checked ? #1b8a65 : #92a99c;
+        border-width: 1px; background: root.checked ? #1b8a65 : #ffffff;
+        Text { text: "✓"; color: #ffffff; visible: root.checked; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; }
+    }
+    Text { x: 25px; text: root.text; color: #35534a; font-size: 13px; vertical-alignment: center; }
+    TouchArea { clicked => { root.checked = !root.checked; } }
+}
+
+export struct RoomRow { name: string, location: string, count: string, id: string }
+export struct SeatRow { name: string, state: string, id: string, free: bool }
+export struct OrderRow { title: string, time: string, state: string, id: string }
+
+export component AppWindow inherits Window {
+    title: "砚席 · 华农图书馆";
+    width: 1080px;
+    height: 750px;
+    background: #f4f6f4;
+
+    in-out property <string> date-text: "";
+    in-out property <string> start-text: "09:00";
+    in-out property <string> end-text: "12:00";
+    in-out property <string> search-text: "";
+    in-out property <string> status-text: "就绪";
+    in-out property <string> user-text: "未登录";
+    in-out property <bool> busy: false;
+    in-out property <bool> present: false;
+    in-out property <int> active-tab: 0;
+    in-out property <int> selected-room: -1;
+    in-out property <int> selected-seat: -1;
+    in-out property <int> selected-order: -1;
+    in-out property <[RoomRow]> rooms: [];
+    in-out property <[SeatRow]> seats: [];
+    in-out property <[OrderRow]> orders: [];
+
+    callback refresh-rooms();
+    callback search-changed(string);
+    callback refresh-seats();
+    callback refresh-orders();
+    callback reserve-seat();
+    callback order-action(string);
+
+    VerticalLayout {
+        spacing: 0px;
+        Rectangle {
+            height: 88px;
+            background: #173c37;
+            HorizontalLayout {
+                padding-left: 30px; padding-right: 30px; spacing: 24px;
+                VerticalLayout {
+                    vertical-stretch: 1;
+                    alignment: center;
+                    Text { text: "砚席"; color: #ffffff; font-size: 26px; font-weight: 700; }
+                    Text { text: "SCAU LIBRARY  /  SEAT DESK"; color: #a7cdc1; font-size: 11px; }
+                }
+                Rectangle { horizontal-stretch: 1; background: transparent; }
+                Text { text: root.user-text; color: #d7ece5; font-size: 13px; vertical-alignment: center; }
+                Rectangle { width: 8px; height: 8px; border-radius: 4px; background: root.busy ? #eab85e : #7fce9e; }
+            }
+        }
+        Rectangle {
+            height: 53px; background: #ffffff;
+            border-color: #dce5df; border-width: 1px;
+            HorizontalLayout {
+                padding-left: 24px; spacing: 0px;
+                for label[index] in ["找座位", "我的预约"] : Rectangle {
+                    width: 118px; background: transparent;
+                    Text { text: label; color: root.active-tab == index ? #175b4b : #63736b; font-size: 14px; font-weight: root.active-tab == index ? 700 : 400; horizontal-alignment: center; vertical-alignment: center; }
+                    Rectangle { y: parent.height - 3px; height: 3px; background: root.active-tab == index ? #1c8b68 : transparent; }
+                    TouchArea { clicked => { root.active-tab = index; if (index == 1) { root.refresh-orders(); } } }
+                }
+            }
+        }
+        if root.active-tab == 0 : HorizontalLayout {
+            horizontal-stretch: 1;
+            width: root.width;
+            padding: 22px; spacing: 18px;
+            Rectangle {
+                width: 340px; background: #ffffff; border-color: #e1e8e2; border-width: 1px; border-radius: 6px;
+                VerticalLayout {
+                    padding: 18px; spacing: 12px;
+                    HorizontalLayout {
+                        Text { text: "阅览空间"; font-size: 18px; font-weight: 700; color: #173c37; vertical-alignment: center; }
+                        Rectangle { horizontal-stretch: 1; background: transparent; }
+                        ActionButton { text: "刷新"; width: 68px; height: 34px; enabled: !root.busy; clicked => { root.refresh-rooms(); } }
+                    }
+                    Field { placeholder: "搜索楼宇、楼层或房间"; height: 36px; value <=> root.search-text; edited(text) => { root.search-changed(text); } }
+                    ScrollView {
+                        vertical-stretch: 1;
+                        VerticalLayout {
+                            spacing: 6px;
+                            for room[index] in root.rooms : Rectangle {
+                                height: 76px; border-radius: 5px;
+                                background: root.selected-room == index ? #e1f3e9 : #f8faf8;
+                                border-color: root.selected-room == index ? #52ad84 : #eef1ed; border-width: 1px;
+                                VerticalLayout {
+                                    padding: 10px; spacing: 4px;
+                                    HorizontalLayout {
+                                        Text { text: room.name; color: #243b34; font-size: 14px; font-weight: 700; overflow: elide; }
+                                        Rectangle { horizontal-stretch: 1; background: transparent; }
+                                        Text { text: room.count; color: #187653; font-size: 12px; }
+                                    }
+                                    Text { text: room.location; color: #75857b; font-size: 12px; overflow: elide; }
+                                }
+                                TouchArea { clicked => { root.selected-room = index; root.selected-seat = -1; root.seats = []; } }
+                            }
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                width: root.width - 402px; background: #ffffff; border-color: #e1e8e2; border-width: 1px; border-radius: 6px;
+                VerticalLayout {
+                    padding: 22px; spacing: 18px;
+                    Text { text: root.selected-room < 0 ? "选择阅览空间" : "挑选座位"; color: #173c37; font-size: 20px; font-weight: 700; }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        VerticalLayout { width: 160px; spacing: 5px; Text { text: "日期"; color: #697970; font-size: 12px; } Field { height: 36px; value <=> root.date-text; } }
+                        VerticalLayout { width: 100px; spacing: 5px; Text { text: "开始"; color: #697970; font-size: 12px; } Field { height: 36px; value <=> root.start-text; } }
+                        VerticalLayout { width: 100px; spacing: 5px; Text { text: "结束"; color: #697970; font-size: 12px; } Field { height: 36px; value <=> root.end-text; } }
+                        ActionButton { text: "查询空座"; width: 104px; height: 36px; enabled: root.selected-room >= 0 && !root.busy; clicked => { root.refresh-seats(); } }
+                    }
+                    Rectangle { height: 1px; background: #e7eee9; }
+                    ScrollView {
+                        vertical-stretch: 1;
+                        VerticalLayout {
+                            spacing: 7px;
+                            for seat[index] in root.seats : Rectangle {
+                                height: 48px; border-radius: 5px;
+                                background: root.selected-seat == index ? #e1f3e9 : #f8faf8;
+                                border-color: root.selected-seat == index ? #52ad84 : #edf1ee; border-width: 1px;
+                                HorizontalLayout {
+                                    padding-left: 14px; padding-right: 14px;
+                                    Text { text: seat.name; color: #243b34; font-size: 14px; font-weight: 600; vertical-alignment: center; }
+                                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                                    Text { text: seat.state; color: seat.free ? #17845b : #9a6960; font-size: 12px; vertical-alignment: center; }
+                                }
+                                TouchArea { clicked => { if (seat.free) { root.selected-seat = index; } } }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        Text { text: root.seats.length == 0 ? "按时间查询可预约座位" : "共 " + root.seats.length + " 个座位"; color: #75857b; font-size: 12px; vertical-alignment: center; }
+                        Rectangle { horizontal-stretch: 1; background: transparent; }
+                        ActionButton { text: "确认预约"; width: 108px; height: 38px; primary: true; enabled: root.selected-seat >= 0 && !root.busy; clicked => { root.reserve-seat(); } }
+                    }
+                }
+            }
+        }
+        if root.active-tab == 1 : Rectangle {
+            background: #f4f6f4;
+            VerticalLayout {
+                padding: 24px; spacing: 16px;
+                HorizontalLayout {
+                    Text { text: "我的预约"; color: #173c37; font-size: 22px; font-weight: 700; }
+                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                    ActionButton { text: "刷新订单"; width: 104px; height: 36px; enabled: !root.busy; clicked => { root.refresh-orders(); } }
+                }
+                ScrollView {
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        spacing: 8px;
+                        for order[index] in root.orders : Rectangle {
+                            height: 72px; background: root.selected-order == index ? #e1f3e9 : #ffffff;
+                            border-color: root.selected-order == index ? #52ad84 : #e1e8e2; border-width: 1px; border-radius: 5px;
+                            HorizontalLayout {
+                                padding-left: 16px; padding-right: 16px;
+                                VerticalLayout { alignment: center; spacing: 5px;
+                                    Text { text: order.title; color: #243b34; font-size: 15px; font-weight: 600; }
+                                    Text { text: order.time; color: #75857b; font-size: 12px; }
+                                }
+                                Rectangle { horizontal-stretch: 1; background: transparent; }
+                                Text { text: order.state; color: #177854; font-size: 13px; vertical-alignment: center; }
+                            }
+                            TouchArea { clicked => { root.selected-order = index; } }
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    ConfirmCheck { text: "本人已到馆"; width: 132px; height: 34px; checked <=> root.present; }
+                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                    ActionButton { text: "签到"; width: 72px; height: 34px; enabled: root.selected-order >= 0 && !root.busy; clicked => { root.order-action("checkin"); } }
+                    ActionButton { text: "暂离"; width: 72px; height: 34px; enabled: root.selected-order >= 0 && !root.busy; clicked => { root.order-action("leave"); } }
+                    ActionButton { text: "归位"; width: 72px; height: 34px; enabled: root.selected-order >= 0 && !root.busy; clicked => { root.order-action("return"); } }
+                    ActionButton { text: "续座 30 分"; width: 104px; height: 34px; enabled: root.selected-order >= 0 && !root.busy; clicked => { root.order-action("extend"); } }
+                    ActionButton { text: "签退"; width: 72px; height: 34px; enabled: root.selected-order >= 0 && !root.busy; clicked => { root.order-action("signout"); } }
+                    ActionButton { text: "取消"; width: 72px; height: 34px; enabled: root.selected-order >= 0 && !root.busy; clicked => { root.order-action("cancel"); } }
+                }
+            }
+        }
+        Rectangle {
+            height: 38px; background: #e9efeb;
+            HorizontalLayout { padding-left: 20px; padding-right: 20px;
+                Text { text: root.status-text; color: #35534a; font-size: 12px; vertical-alignment: center; overflow: elide; }
+                Rectangle { horizontal-stretch: 1; background: transparent; }
+                Text { text: root.busy ? "处理中" : "libseat.scau.edu.cn"; color: #688076; font-size: 11px; vertical-alignment: center; }
+            }
+        }
+    }
+}
