@@ -97,9 +97,11 @@ bash install.sh                  # 装依赖 + 生成 .env + 注册到 Codex + �
 - **密码是明文提交**，没有 RSA/AES/SM2 之类的客户端加密，也没有时间戳签名。
 - **座位二维码没有凭据**：解出来就是 `https://libseat.scau.edu.cn/use?seatName=<座位名>`，
   没有 token / 订单号 / 签名；`/use` 甚至不是前端路由（兜底给 `index.html`）。
-- **签到走的是两条接口**：网页端 `POST /web/user/checkin/sign {id}` 被设备授权锁死
-  （`本机未授权，请到馆内签到机操作`，换网络/换 IP/换 UA 都无效），手机端用的是
-  `POST /web/user/in {id}`（不在前端 bundle 里）—— 详见 [docs/成果.md](docs/成果.md) 第 5 节。
+- **签到走的是两条接口，且 MCP 里那条签不了**：网页端 `POST /web/user/checkin/sign {id}`
+  被设备授权锁死（`本机未授权，请到馆内签到机操作`，换网络/换 IP/换 UA 都无效），手机端用的是
+  `POST /web/user/in {id}`（不在前端 bundle 里）。所以 `libseat_checkin` / `checkin.mjs` /
+  `libseat_checkin` 这些**只是查状态与对照用，不提供签到能力** —— 详见
+  [docs/成果.md](docs/成果.md) 第 5 节。
 - 「预约」在站点内部叫 **due**，`seatesid` 用的是座位表里的 `seatid`（不是 `code`）。
 - 时间段格式前后不一致，照抄前端：查询座位用 `"YYYY-MM-DD HH:mm:ss"`，提交预约用 `"YYYY-MM-DD HH:mm"`；
   结束时间 = 最后一个半小时片 + 30 分钟。
@@ -233,7 +235,8 @@ LIBSEAT_CAPTCHA_CMD=uv run --python 3.12 --with ddddocr python /abs/path/solvers
 | `libseat_reserve` | 提交预约（可给 seatId 或 seatName） |
 | `libseat_my_reservations` / `libseat_reservation_detail` | 预约列表 / 详情 |
 | `libseat_today` / `libseat_order_log` | 今日预约 / 预约状态流水 |
-| `libseat_cancel` / `libseat_checkin` / `libseat_signout` / `libseat_tempout` / `libseat_continue` | 取消 / 签到 / 签退 / 暂离归位 / 续座 |
+| `libseat_cancel` / `libseat_signout` / `libseat_tempout` / `libseat_continue` | 取消 / 签退 / 暂离归位 / 续座 |
+| `libseat_checkin` | ⚠️ **签不了到**。它打的是网页端 `/web/user/checkin/sign`，服务端按设备授权放行，普通客户端一律 `本机未授权，请到馆内签到机操作`（换网络/IP/UA 都无效）。现实用途：**查自己签没签上 / 对照站点行为**；签到请用手机扫码或馆内签到机 |
 | `libseat_smart_plan` / `libseat_smart_due` | 智能规划（候选座位方案）/ 按方案批量下单 |
 | `libseat_group` / `libseat_members` | 空间组队（open/close/agree/refuse/join/邀请）/ 同行成员（list/find/add/remove） |
 | `libseat_me` / `libseat_home` / `libseat_districts` | 我的档案（积分/违约）/ 首页概览 / 校区 |

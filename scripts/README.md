@@ -35,8 +35,8 @@ node scripts/reserve.mjs --room 一楼思政 --first-free --date 2026-10-12 --st
 | | `detail.mjs` | 预约详情 |
 | | `order-log.mjs` | 预约状态流水 |
 | | `cancel.mjs` | 取消预约 |
-| | `checkin.mjs` | 签到 |
-| | `checkin-guard.mjs` | 签到兜底：窗口内重试，到取消截止还没签上就自动撤单，全程落盘当证据 |
+| | `checkin.mjs` | 签到（⚠️ 网页端接口，普通客户端会被拒 —— 签不了到，只能查状态） |
+| | `checkin-guard.mjs` | 签到兜底：盯自己的签到有没有成功（比如手机扫的），到取消截止还没签上就自动撤单，全程落盘当证据。**它不能替你签到**（那条接口被锁死） |
 | | `signout.mjs` | 签退 |
 | | `tempout.mjs` | 暂离 / 归位 |
 | | `continue.mjs` | 续座 |

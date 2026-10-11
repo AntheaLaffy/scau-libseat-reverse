@@ -189,7 +189,11 @@ export const commands = {
     run: async ({ flags }) => out(await ops.orderLog({ orderId: need(flags, 'id') })),
   },
   cancel: { desc: '取消预约', usage: '--id ORDER_ID', run: async ({ flags }) => out(await ops.cancel({ id: need(flags, 'id') })) },
-  checkin: { desc: '签到', usage: '--id ORDER_ID', run: async ({ flags }) => out(await ops.checkin({ id: need(flags, 'id') })) },
+  checkin: {
+    desc: '签到（⚠️ 网页端接口，普通客户端会被拒；签不了到，只能查状态）',
+    usage: '--id ORDER_ID',
+    run: async ({ flags }) => out(await ops.checkin({ id: need(flags, 'id') })),
+  },
   signout: { desc: '签退', usage: '--id ORDER_ID', run: async ({ flags }) => out(await ops.signout({ id: need(flags, 'id') })) },
   tempout: {
     desc: '暂离 / 归位',

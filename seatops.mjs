@@ -302,9 +302,35 @@ export async function cancel({ id }) {
   return { id, ok: res?.isOk === true, message: res?.message ?? '', data: res?.data ?? null };
 }
 
+/**
+ * 签到 —— **注意：这条接口（/web/user/checkin/sign）是网页 SPA / 签到机那条路，被服务端设备授权锁死**，
+ * 普通客户端（包括本工具）一律收到「本机未授权，请到馆内签到机操作」。
+ * 手机扫码签到走的是另一条接口 /web/user/in，本项目只记录结论、不接入（见 docs/成果.md 第 5 节）。
+ * 所以这个函数的现实用途是「查自己签没签上」和「对齐站点行为」，不是替你签到。
+ */
 export async function checkin({ id }) {
   const res = await authed(() => api.checkin(id));
-  return { id, ok: res?.isOk === true, signedIn: res?.data?.signin === 1, message: res?.message ?? '', data: res?.data ?? null };
+  const raw = res?.message ?? '';
+  const blocked = raw.includes('本机未授权') || raw.includes('非检索机');
+  // 被拒时把「你到底签没签上」查出来 —— 否则这个函数就只剩一句报错了
+  let state = null;
+  if (blocked) {
+    const mine = await authed(() => api.reserveList({ pageNum: 1, pageSize: 50 })).catch(() => null);
+    const row = (mine?.data?.list ?? []).find((o) => String(o.id) === String(id));
+    if (row) state = { signedIn: row.signin === 1, statusText: statusText(row), entryTime: row.entrytime, seat: row.seatname, start: row.duestartime };
+  }
+  return {
+    id,
+    ok: res?.isOk === true,
+    signedIn: res?.data?.signin === 1 || state?.signedIn === true,
+    message: raw,
+    state,
+    // 别让调用方以为「再试一次就能签上」
+    hint: blocked
+      ? '这条是网页端/签到机的接口，服务端按设备授权放行，本机（普通客户端）签不了 —— 请用手机扫码或馆内签到机完成签到；本工具只能用来查签到状态'
+      : undefined,
+    data: res?.data ?? null,
+  };
 }
 
 export async function signout({ id }) {

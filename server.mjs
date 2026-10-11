@@ -390,7 +390,15 @@ server.registerTool(
 
 server.registerTool(
   'libseat_checkin',
-  { title: '签到', description: '按预约 id 签到（/web/user/checkin/sign）。返回 signedIn=true 表示成功。', inputSchema: { id: z.string() } },
+  {
+    title: '签到（网页端接口，普通客户端会被拒）',
+    description:
+      '⚠️ 这条打的是网页 SPA / 签到机用的 /web/user/checkin/sign，服务端按设备授权放行：' +
+      '普通客户端一律返回「本机未授权，请到馆内签到机操作」，换网络、换 IP、换 UA 都无效（实测）。' +
+      '**它签不了到**，现实用途是查自己签没签上 / 对照站点行为。手机扫码签到走的是另一条接口 ' +
+      '/web/user/in（不在前端 bundle 里，本项目只记录不接入，见 docs/成果.md 第 5 节）。',
+    inputSchema: { id: z.string() },
+  },
   wrap(async ({ id }) => json(await ops.checkin({ id }))),
 );
 
