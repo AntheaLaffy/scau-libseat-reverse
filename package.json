@@ -1,0 +1,21 @@
+{
+  "name": "libseat-scau-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SCAU 图书馆座位预约系统（libseat.scau.edu.cn）外置 MCP：账号密码自动登录 + 验证码求解插槽 + 预约/签到/取消",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "doctor": "node doctor.mjs",
+    "capture": "node doctor.mjs --capture",
+    "probe": "node doctor.mjs --probe"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "zod": "^3.25.76"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

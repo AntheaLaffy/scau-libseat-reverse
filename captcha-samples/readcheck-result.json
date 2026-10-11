@@ -1,0 +1,35 @@
+{
+  "at": "2026-10-11T09:57:03.735Z",
+  "rows": [
+    {
+      "seq": 1,
+      "myRead": "K479",
+      "verdict": "captcha_rejected",
+      "message": "验证码错误"
+    },
+    {
+      "seq": 2,
+      "myRead": "ALCH",
+      "verdict": "captcha_accepted",
+      "message": "user can not find"
+    },
+    {
+      "seq": 3,
+      "myRead": "ATTL",
+      "verdict": "captcha_rejected",
+      "message": "验证码错误"
+    },
+    {
+      "seq": 4,
+      "myRead": "9RUE",
+      "verdict": "captcha_rejected",
+      "message": "验证码错误"
+    },
+    {
+      "seq": 5,
+      "myRead": "49XR",
+      "verdict": "captcha_rejected",
+      "message": "验证码错误"
+    }
+  ]
+}
