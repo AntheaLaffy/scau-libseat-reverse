@@ -1,14 +1,16 @@
 # 华南农业大学图书馆座位预约系统逆向（libseat.scau.edu.cn）
 
-对图书馆座位预约系统的协议逆向，外加一个 stdio MCP server（16 个工具）：账号密码登录
-（走统一身份认证，**免验证码**）、查空座、看/取消预约、签到签退、预约详情。
+对图书馆座位预约系统的协议逆向，外加一个 stdio MCP server（**36 个工具**）：账号密码登录
+（走统一身份认证，**免验证码**）、查空座与实时空位、房间详情与平面图、提交/取消预约、
+签到签退、暂离归位、续座、智能规划与批量下单、空间组队与同行成员、公告/FAQ/假期、
+违约记录、资产报修。另附 **36 个 CLI 子命令 + 36 个脚本**（`cli.mjs` / `scripts/`：34 个功能脚本 + 全量对账 + 签到兜底）。
 
 面向的是**自己的账号**：所有请求都以你本人身份发出，站方规则（每人每天最多 3 次、
 开馆时段、开始后 15 分钟内签到、离馆 40 分钟内归位）照常生效。
 
 - 完整逆向记录（接口表、验证码规则与实测数据、CAS 三步协议、读图命中率、踩过的坑）：
   [docs/逆向记录.md](docs/逆向记录.md)
-- 成果摘要（逆完了什么、实测结论、交付物清单、边界）：
+- 成果摘要（逆完了什么、实测结论、交付物清单、边界、**抓包方法**）：
   [docs/成果.md](docs/成果.md)
 - 验证码样本与 manifest（会话值只留 `jsessionid_sha256` 指纹，不落原文），可用来训练 / 回归自己的求解器：
   [`captcha-samples/`](captcha-samples/)
@@ -53,12 +55,13 @@
 外置 MCP server（stdio），目标站点 <https://libseat.scau.edu.cn/>。账号密码写在本地
 `.env`，进程内存里维持会话，401 自动重登，验证码走可插拔求解器。
 
-本目录整体被 `.gitignore`（`/mcp/`）排除，不入库；`.env` 内含凭据，`chmod 600`。
+本仓库就是源码本体；`.env`（凭据）与 `*-session.json` / `*-pending.json` 被 `.gitignore` 排除，
+验证码样本只落 `jsessionid_sha256` 指纹、不落会话原文。
 
 ## 安装
 
 ```bash
-bash mcp/libseat/install.sh      # 装依赖 + 生成 .env + 注册到 Codex + 自检
+bash install.sh                  # 装依赖 + 生成 .env + 注册到 Codex + 自检
 ```
 
 装完重启 Codex 会话，MCP 里会出现 `libseat-scau` 的 `libseat_*` 工具。
@@ -92,6 +95,11 @@ bash mcp/libseat/install.sh      # 装依赖 + 生成 .env + 注册到 Codex + �
 要点：
 
 - **密码是明文提交**，没有 RSA/AES/SM2 之类的客户端加密，也没有时间戳签名。
+- **座位二维码没有凭据**：解出来就是 `https://libseat.scau.edu.cn/use?seatName=<座位名>`，
+  没有 token / 订单号 / 签名；`/use` 甚至不是前端路由（兜底给 `index.html`）。
+- **签到走的是两条接口**：网页端 `POST /web/user/checkin/sign {id}` 被设备授权锁死
+  （`本机未授权，请到馆内签到机操作`，换网络/换 IP/换 UA 都无效），手机端用的是
+  `POST /web/user/in {id}`（不在前端 bundle 里）—— 详见 [docs/成果.md](docs/成果.md) 第 5 节。
 - 「预约」在站点内部叫 **due**，`seatesid` 用的是座位表里的 `seatid`（不是 `code`）。
 - 时间段格式前后不一致，照抄前端：查询座位用 `"YYYY-MM-DD HH:mm:ss"`，提交预约用 `"YYYY-MM-DD HH:mm"`；
   结束时间 = 最后一个半小时片 + 30 分钟。
@@ -221,7 +229,7 @@ LIBSEAT_CAPTCHA_CMD=uv run --python 3.12 --with ddddocr python /abs/path/solvers
 | `libseat_captcha_capture` | 抓验证码样本（可选内联图片） |
 | `libseat_captcha_probe` | 求解器命中率探针 |
 | `libseat_rooms` / `libseat_timespans` | 房间与时间片（公开，免登录） |
-| `libseat_seats` | 某房间某时段座位占用（需登录） |
+| `libseat_seats` | 某房间某时段座位占用；`realtime=true` 走公开接口查「现在」的快照（免登录） |
 | `libseat_reserve` | 提交预约（可给 seatId 或 seatName） |
 | `libseat_my_reservations` / `libseat_reservation_detail` | 预约列表 / 详情 |
 | `libseat_today` / `libseat_order_log` | 今日预约 / 预约状态流水 |
@@ -235,6 +243,9 @@ LIBSEAT_CAPTCHA_CMD=uv run --python 3.12 --with ddddocr python /abs/path/solvers
 | `libseat_violations` / `libseat_violations_read` | 违约记录 / 标记提醒已读 |
 | `libseat_assets` / `libseat_report_repair` | 座位/房间设备 / 报修 |
 | `libseat_api` | 原始接口逃生舱（站点改版时用） |
+
+> ⚠️ `libseat_checkin` 打的是网页端那条被设备授权锁死的接口（`本机未授权，请到馆内签到机操作`）。
+> 日常签到用手机扫码或馆内签到机；这条工具留着是为了记录/对照，别当签到用。
 
 合计 **36 个工具**，覆盖站点前台的全部功能（座位 + 研讨间空间、预约全生命周期、
 智能规划、组队与同行成员、公告/FAQ/违约/资产报修）。
@@ -284,7 +295,7 @@ node logintest.mjs --captcha AB3D --watch 60  # 追加会话寿命观测（最�
 - `/web/user/captcha` → JPEG 120x40 + `Set-Cookie: JSESSIONID`；
 - **登录链路一直通到账号查询**：人工读图提交正确验证码 → `user can not find`（见上方证据）；
 - 401 约定：`/web/pc/*`、`/web/user/*` 未登录返回 `{"code":401,"msg":"请登录访问"}`；
-- MCP 协议层：`node smoke.mjs` 完成 initialize / tools/list（16 个工具）/ tools/call（真实取到房间列表）；
+- MCP 协议层：`node smoke.mjs` 完成 initialize / tools/list（36 个工具）/ tools/call（真实取到房间列表）；
 - 进程存活：常开管道下 server 持续在线、管道关闭（EOF）才退出。
 
 第二轮（2026-10-11 晚，真账号实测）已把这些跑到确定结论：
