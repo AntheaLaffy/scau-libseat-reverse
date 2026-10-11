@@ -36,6 +36,7 @@ node scripts/reserve.mjs --room 一楼思政 --first-free --date 2026-10-12 --st
 | | `order-log.mjs` | 预约状态流水 |
 | | `cancel.mjs` | 取消预约 |
 | | `checkin.mjs` | 签到 |
+| | `checkin-guard.mjs` | 签到兜底：窗口内重试，到取消截止还没签上就自动撤单，全程落盘当证据 |
 | | `signout.mjs` | 签退 |
 | | `tempout.mjs` | 暂离 / 归位 |
 | | `continue.mjs` | 续座 |

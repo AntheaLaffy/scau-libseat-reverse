@@ -293,7 +293,7 @@ node logintest.mjs --captcha AB3D --watch 60  # 追加会话寿命观测（最�
 | `duelist` / `duedetail` / `todaylist` / 状态流水 | ✔ 成功 |
 | `cancel` | ✔ 成功（订单转 `duestatu:4 / dueendstatu:1`） |
 | `smartPlan` / `smartDue` | ✔ 20:00 后跑通，`maxDate` 自动变次日 |
-| `checkin` | ✗ **服务端要求馆内签到机**：`本机未授权，请到馆内签到机操作`（`kioskCheckIn` 也是「非检索机环境」） |
+| `checkin` | ✗ 笔记本被拒：`本机未授权，请到馆内签到机操作`；同分钟手机在馆内网络签成功（流水 `SIGN_IN 用户手机签到`，`client_ip=172.20.188.19`）→ **按来源 IP/设备判定，与定位无关** |
 | `signout` / `tempout` / `continueOrder` | 需要已签到且到开始时间，当前账号拿不到；已确认 `continuetime` 是**整数分钟** |
 | 组队 / 成员 / 违约 / 资产 / 公告 / FAQ | ✔ 读接口全通；成员搜索按**学号**匹配（姓名搜不到） |
 
