@@ -8,6 +8,8 @@
 
 - 完整逆向记录（接口表、验证码规则与实测数据、CAS 三步协议、读图命中率、踩过的坑）：
   [docs/逆向记录.md](docs/逆向记录.md)
+- 成果摘要（逆完了什么、实测结论、交付物清单、边界）：
+  [docs/成果.md](docs/成果.md)
 - 验证码样本与 manifest（会话值只留 `jsessionid_sha256` 指纹，不落原文），可用来训练 / 回归自己的求解器：
   [`captcha-samples/`](captcha-samples/)
 
